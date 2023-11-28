@@ -1,0 +1,144 @@
+---
+title: "Phenotype_Extraction"
+output: html_document
+date: "2023-01-11"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(FIELDimageR)
+library(raster)
+options("rgdal_show_exportToProj4_warnings"="none")
+library(rgdal)
+```
+
+```{r}
+###############################################################################
+###############################ASSIGN VARIABLES################################
+###############################################################################
+
+# wd = working directory
+wd <- "/Users/s2c_cafnrrundji/Desktop/Rollins5_Data_Extraction/210701_DE"
+# x = grid
+x <- "Rollins5_grid_NEW.shp"
+# y = RGB tif file
+y <- "210701_m2pro_Rollins5_Pix4D_transparent_mosaic_group1.tif"
+# z = final file name of indices
+z <- "210701_Indices.csv"
+# b = final file name of LAI
+b <- "2100701_LAI.csv"
+# c = digital surface model of the RGB field 
+c <- "210701_m2pro_Rollins5_Pix4D_dsm.tif"
+# d = digital elevation model of the field before plants emerge
+d <- "210604_m2pro_Rollins5_Pix4D_dsm.tif"
+# e = the final file name of the plant height values
+e <- "210701_Height.csv"
+```
+
+```{r}
+###############################################################################
+##################LAI VALUE EXTRACTION FROM RGB ORTHOMOSAIC####################
+###############################################################################
+
+setwd(wd)
+
+#Bring in aggregated image
+m2pro <- stack(y)
+a.m2pro <- aggregate(m2pro, fact = 4)
+writeRaster(a.m2pro, filename = "aggregated_m2pro.tif", overwrite=TRUE)
+a.m2pro <- stack("aggregated_m2pro.tif")
+a.m2pro
+plotRGB(a.m2pro, r = 1, g = 2, b = 3)
+
+#remove soil from image
+a.m2pro.RemSoil <- fieldMask(mosaic = a.m2pro, Red = 1, Green = 2, Blue = 3, index = "HUE")
+plotRGB(a.m2pro.RemSoil$newMosaic, r = 1, g = 2, b = 3)
+
+#bring in shape file from QGIS
+a.m2pro.Shape <- readOGR("Rollins5_grid_NEW.shp")
+plot(a.m2pro.Shape, add=T)
+
+#Extract field canopy/LAI from plots
+a.m2pro.Canopy<-fieldArea(mosaic = a.m2pro.RemSoil$mask, fieldShape = a.m2pro.Shape, n.core=10)
+
+writeOGR(a.m2pro.Canopy$fieldShape, ".", b, driver="ESRI Shapefile")
+write.csv(a.m2pro.Canopy$fieldShape, file = b,col.names = T,row.names = F)
+```
+
+```{r}
+
+###############################################################################
+###########INDICES VALUE EXTRACTION FROM MULTISPECTRAL ORTHOMOSAIC#############
+###############################################################################
+
+#first import all files in a single folder as a list 
+rastlist <- list.files(pattern="\\d+\\_RE.+\\.tif", all.files=TRUE, full.names=FALSE)
+allrasters <- stack(rastlist)
+plot(allrasters)
+
+# Removing the soil using index and mask from step 4:
+allrasters.RemSoil<-fieldMask(allrasters,Red=1,Green=2,Blue=3,RedEdge=4,NIR=5,index="HUE",cropValue=0,cropAbove=T,plot=T)
+plot(allrasters.RemSoil$newMosaic)
+
+# Extract NDVI and add to the data frame
+#Calculate index data based on remove soil
+allrasters.Indices<- fieldIndex(mosaic = allrasters.RemSoil$newMosaic,
+                                Red=1,Green=2,Blue=3,RedEdge=4,NIR=5,
+                                index = c("BI","GLI","NGRDI", "VARI","BGI","NDVI"), 
+                                myIndex = c("((Green*Green)-(Red*Blue))/((Green*Green)+(Red*Blue))",
+                                     "((2*Green)-Red-Blue)",
+                                     "(Green -Blue)/(Green+Blue)",
+                                     "(2*Green-(Red+Blue))/(2*Green+(Red+Blue))",
+                                     "((3*Green)-(2.4*Red)-Blue)",
+                                     "(Green-Red)/(Green+Red)",
+                                     "((Green*Green)-(Red*Red))/((Green*Green)+(Red*Red))",
+                                     "(Green-(Blue*Red))/((Green*Green)+(Blue*Red))",
+                                     "((2*Green)-Red-Blue)/(Red+Green+Blue)",
+                                     "(Red/(Red+Green+Blue))",
+                                     "((1.4*Red)-Green)/(Red+Green+Blue)",
+                                     "(Blue/(Red+Green+Blue))",
+                                     "Green/Blue",
+                                     "Green-Red",
+                                     "(Blue-Red)/(Blue+Red)",
+                                     "Green/(Red^0.667*Blue^0.334)"))
+
+#Extract index data for each plot in shape file.
+m2pro.Info <- fieldInfo(mosaic = allrasters.Indices,
+                        fieldShape = a.m2pro.Shape,
+                        projection = FALSE, 
+                        n.core = 10)
+
+# export the data to the wd
+writeOGR(m2pro.Info$fieldShape, ".", z, driver="ESRI Shapefile")
+write.csv(m2pro.Info$fieldShape, file = z, col.names = T,row.names = F)
+```
+
+```{r}
+###############################################################################
+###############HEIGHT EXTRACTION FROM DIGITAL ELEVATION MODELS#################
+###############################################################################
+
+# Uploading files from soil base (EX_DSM0.tif) and vegetative growth (EX_DSM1.tif):
+DSM0 <- stack(d)
+DSM1 <- stack(c)
+
+# Canopy Height Model (CHM):
+DSM0.R <- resample(DSM0, DSM1)
+CHM <- DSM1-DSM0.R
+
+# Removing the soil using mask from step 4:
+CHM.S <- fieldMask(CHM, mask = a.m2pro.RemSoil$mask)
+
+# Extracting the estimate plant height average (EPH):
+EPH <- fieldInfo(CHM.S$newMosaic, fieldShape = a.m2pro.Shape, fun = "mean", n.core = 10)
+EPH$plotValue
+
+writeOGR(EPH$fieldShape, ".", e, driver="ESRI Shapefile")
+write.csv(EPH$fieldShape, file = e, col.names = T,row.names = F)
+```
+
+```
+

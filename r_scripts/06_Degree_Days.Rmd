@@ -1,0 +1,92 @@
+---
+title: "Degree_Days_FT"
+output: html_document
+date: "2023-09-07"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+setwd("/Users/madi_mitchell/Desktop/uav_flood_analysis/RStudio")
+
+library(ggplot2)
+library(tidyr)
+library(degday)
+library(dplyr)
+```
+
+```{r}
+#clean up the data and make 06/02/20 or day 153 the first day in the csv...since it is the planting date
+
+NP_21 <- read.csv("NASA_POWER_2020.csv", header = TRUE, sep = ",", skip = 1)
+
+#still need to remove rows before planting date
+NP2_21 <- NP_21[-(1:152),]
+
+```
+
+```{r}
+# degday calc per day
+NP2_21$degday <- dd_simp_avg( daily_min = NP2_21$T2M_MIN,
+             daily_max = NP2_21$T2M_MAX,
+             thresh_low = 10,
+             thresh_up = NULL,
+             simp_avg_zero_method = 1,
+             digits = 2,
+             cumulative = FALSE,
+             quiet = FALSE
+             )
+
+#graph of deg days over the year
+p <- ggplot(NP2_21, aes(x=DOY, y=degday)) +
+  geom_line( color="#69b3a2") + 
+  xlab("Day of the Year") +
+  ylab("Degree Days") +
+  #theme_ipsum() +
+  theme(axis.text.x=element_text(angle=60, hjust=1)) 
+
+p
+
+#cumulative calculation
+NP2_21$degday_total <- dd_simp_avg( daily_min = NP2_21$T2M_MIN,
+             daily_max = NP2_21$T2M_MAX,
+             thresh_low = 10,
+             thresh_up = NULL,
+             simp_avg_zero_method = 1,
+             digits = 2,
+             cumulative = TRUE,
+             quiet = FALSE
+             )
+#graph of cumulative calc
+p <- ggplot(NP2_21, aes(x=DOY, y=degday_total)) +
+  geom_line( color="#69b3a2") + 
+  xlab("Day of the Year") +
+  ylab("Total Degree Days") +
+  #theme_ipsum() +
+  theme(axis.text.x=element_text(angle=60, hjust=1)) 
+
+p
+
+#save output
+write.csv(NP2_21, file = "NP_2020_degdays_v2.csv", row.names = TRUE)
+
+
+```
+
+```{r}
+
+##not currently working
+
+NP_20 <- read.csv("NP_2020_degdays.csv", header = TRUE, sep = ",")
+
+df_all <- cbind.data.frame(NP_20$DOY, NP_20$degday_total, NP2_21$degday_total, deparse.level = 1)
+
+names(df_all)[names(df_all) == 'NP_20$DOY'] <- 'DOY'
+names(df_all)[names(df_all) == 'NP_20$degday_total'] <- 'NP'
+names(df_all)[names(df_all) == 'DM_20$degday_total'] <- 'DM'
+names(df_all)[names(df_all) == 'B_20$degday_total'] <- 'B'
+
+```
+

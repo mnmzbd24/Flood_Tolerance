@@ -1,0 +1,72 @@
+---
+title: "Madi_data_cleaning"
+output: html_document
+date: "2023-02-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(data.table)
+library(plyr)
+library(readr)
+
+wd <- "/Users/s2c_cafnrrundji/Desktop/Rollins5_Data_Extraction/210721_DE"
+# Indices file name
+x <- "210721_Indices.csv"
+# height file name
+y <- "210721_Height.csv"
+# LAI file name
+z <- "210721_LAI.csv"
+# column and row info from excel
+m <- "Rollins_Field_Map_NEW.csv"
+
+#name for the final data csv to be exported to wd
+a <- "210721_All_Data.csv"
+
+setwd(wd)
+```
+
+```{r}
+
+# bring in the csv files
+DF1 <- read.csv(x)
+DF2 <- read.csv(y)
+DF3 <- read.csv(z)
+DF4 <- read.csv(m)
+
+#merge...you can only do two at a time
+Data <- merge(DF3, DF2, by = "PlotID")
+Data
+
+#merge
+AllData <- merge(Data, DF1, by = "PlotID")
+AllData
+
+#make the names uniform so that they can be properly merged
+names(DF4)[names(DF4) == 'MOplot'] <- 'PlotID'
+
+#final merge
+AllDATA <- merge(AllData, DF4, by = "PlotID")
+AllDATA
+
+# change the column name so that it is correct in the reference bar
+names(AllDATA)[names(AllDATA) == 'objArea'] <- 'LAI'
+
+# change the column name so that it is correct in the reference bar
+names(AllDATA)[names(AllDATA) == 'layer'] <- 'Height'
+
+#select only the wanted columns of data 
+AllDATA_cleaned <- AllDATA[ , c("PlotID","LAI","Height","BI","GLI","NGRDI","VARI","BGI","NDVI","myIndex.1","myIndex.2","myIndex.3","myIndex.4","myIndex.5","myIndex.6","myIndex.7","myIndex.8","myIndex.9","myIndex.10","myIndex.11","myIndex.12","myIndex.13","myIndex.14","myIndex.15","myIndex.16","Pedigree","Exp_row","Exp_range")]
+
+write.csv(AllDATA_cleaned, file = a)
+```
+
+```{r}
+#############################ADD IN THE NEW HEIGHT VALUES#######################
+
+for (i in 1:5){print (i + 1)}
+```
+

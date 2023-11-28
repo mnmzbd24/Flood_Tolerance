@@ -1,0 +1,80 @@
+---
+title: "Re-Number"
+output: html_document
+date: "2023-03-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(R.matlab)
+library(tidyr)
+library(viridis)
+library(ggplot2)
+
+wd <- "~/Desktop/RStudio"
+setwd(wd)
+
+z <- "210721_ph_ML"
+z
+```
+
+```{r}
+###CONVERT THE PH DATA FRO .MAT TO A .CSV FILE###
+
+ph <- read.csv("./ph_data/ph_data/210721ph_extracted_values.csv")
+head(ph)
+summary(ph)
+
+ph_for_export <- as.data.frame(ph)
+
+write.csv(ph_for_export, file="test_means.csv")
+```
+
+```{r}
+###RENUMBER THE .CSV FILE (CORRECT PLOTID, RANGE, AND ROW TO THE NEW PH)###
+R5 <- read.csv("Rollins_Field_Map_NEW.csv")
+new_ph <- read.csv("re-number.csv")
+summary(new_ph)
+
+#ADD A COLUMN WITH NEW_PLOTID
+test_means_correct <- cbind(ph_for_export, new_ph)
+test_means_correct
+
+#FIX COLUMN LABELS
+names(test_means_correct)[names(test_means_correct) == 'means'] <- 'Plant_Height'
+test_means_correct
+
+names(R5)[names(R5) == 'MOplot'] <- 'PlotID'
+
+#MERGE THE DF SO THAT YOU HAVE COLUMNS AND ROWS
+test_means_correct <- merge(test_means_correct, R5, by = "PlotID")
+test_means_correct
+
+#KEEP ONLY THE INFORMATION THAT YOU WANT
+test_means_correct <- test_means_correct[ , c("PlotID","new_ID", "Plant_Height","Pedigree","Exp_row","Exp_range")]
+test_means_correct
+
+#EXPORT AND SAVE THE CSV
+write.csv(test_means_correct, file = z)
+```
+
+```{r}
+###PLOT THE NEW HEIGHTS FOR COMPARISON
+# Graph heatmap of height
+
+ggplot(z, aes(x = Exp_row, y = Exp_range, fill = Plant_Height)) +
+  geom_tile(color = "black") +
+  geom_tile() +
+  xlab(label = "Row") +
+  ylab(label = "Range") +
+  scale_fill_viridis_c(limits=c(0, 45), breaks=seq(0,45, by=5)) +
+  guides( fill = guide_colourbar(barwidth = 0.5,
+                                barheight = 20)) +
+  theme_gray(base_size = 24)+
+  theme(#axis.title.x = element_blank(), 
+        legend.position = '')
+```
+

@@ -1,0 +1,47 @@
+---
+title: "NP_vs_Daymet"
+output: html_document
+date: "2023-09-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+NP_20 <- read.csv("NP_2020_degdays.csv", header = TRUE, sep = ",")
+NP_20 <- NP_20[-(366),]
+
+
+DM_20 <- read.csv("DM_2020_degdays.csv", header = TRUE, sep = ",")
+
+B_20 <- read.csv("B_2020_degdays.csv", header = TRUE, sep = ",")
+
+
+df_all <- cbind.data.frame(NP_20$DOY, NP_20$degday_total, DM_20$degday_total, B_20$degday_total, deparse.level = 1)
+
+names(df_all)[names(df_all) == 'NP_20$DOY'] <- 'DOY'
+names(df_all)[names(df_all) == 'NP_20$degday_total'] <- 'NP'
+names(df_all)[names(df_all) == 'DM_20$degday_total'] <- 'DM'
+names(df_all)[names(df_all) == 'B_20$degday_total'] <- 'B'
+
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+
+df_all <- melt(df_all, id.vars="DOY")
+
+
+ggplot(df_all, aes(DOY,value, col=variable)) + 
+  geom_line() +
+    ggtitle("GDD Comparison")
+
+ggplot(df_all, aes(DOY,value, col=variable)) + 
+  geom_line( color="grey") +
+    geom_point(shape=21, color="black", fill="#69b3a2", size=1) +
+    ggtitle("GDD Comparison")
+```
+

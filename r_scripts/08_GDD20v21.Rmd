@@ -1,0 +1,61 @@
+---
+title: "NP_vs_Daymet"
+output: html_document
+date: "2023-09-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+NP_20 <- read.csv("~/desktop/uav_flood_analysis/RStudio/Data/NP_2020_degdays_v2.csv", header = TRUE, sep = ",")
+colnames(NP_20)[colnames(NP_20) == "DOY"] ="DOY_20"
+colnames(NP_20)[colnames(NP_20) == "degday"] ="degday_20"
+colnames(NP_20)[colnames(NP_20) == "degday_total"] ="degday_total_20"
+
+NP_21 <- read.csv("~/desktop/uav_flood_analysis/RStudio/Data/NP_2021_degdays.csv", header = TRUE, sep = ",")
+NP_21 <- NP_21[-(215:232),]
+colnames(NP_21)[colnames(NP_21) == "DOY"] ="DOY_21"
+colnames(NP_21)[colnames(NP_21) == "degday"] ="degday_21"
+colnames(NP_21)[colnames(NP_21) == "degday_total"] ="degday_total_21"
+
+
+df_all <- cbind.data.frame(NP_20$DOY_20, NP_20$degday_20, NP_20$degday_total_20, NP_21$DOY_21, NP_21$degday_21, NP_21$degday_total_21, deparse.level = 1)
+colnames(df_all)[colnames(df_all) == "NP_21$DOY_21"] ="DOY_21"
+colnames(df_all)[colnames(df_all) == "NP_21$degday_21"] ="degday_21"
+colnames(df_all)[colnames(df_all) == "NP_21$degday_total_21"] ="degday_total_21"
+colnames(df_all)[colnames(df_all) == "NP_20$DOY_20"] ="DOY_20"
+colnames(df_all)[colnames(df_all) == "NP_20$degday_20"] ="degday_20"
+colnames(df_all)[colnames(df_all) == "NP_20$degday_total_20"] ="degday_total_20"
+
+dpp <- c(1:214)
+df_all <- cbind(df_all, dpp)
+
+write.csv(df_all, file = "degdays20v21.csv", row.names = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(viridis)
+
+clean <- read.csv("~/desktop/uav_flood_analysis/RStudio/Data/degdays20v21_clean.csv", header = TRUE, sep = ",")
+
+ggplot(clean, aes(dpp, value, col=variable)) + 
+  geom_line( color="grey") +
+    geom_point(shape=21, color="black", fill="#69b3a2", size=1) +
+    ggtitle("2020 vs 2021") +
+    ylab("Growing Degree Days") +
+    xlab("Days Post-Planting")
+
+ggplot(clean, aes(x=dpp, y=value, group=variable, color=variable)) +
+    geom_line() +
+    scale_color_manual(values = c("#F8766D", "#018571")) +
+    ggtitle("2020 vs 2021 Cummulative Growing Degree Days") +
+    ylab("Growing Degree Days (GDD)") +
+    xlab("Days Post-Planting")
+
+```
+

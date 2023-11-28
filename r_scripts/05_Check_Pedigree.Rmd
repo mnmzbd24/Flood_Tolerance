@@ -1,0 +1,56 @@
+---
+title: "check names"
+output: html_document
+date: "2023-07-25"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+```
+
+```{r}
+G2F_2020 <- read.csv("G2F_2020.csv", header = TRUE, sep = ",")
+str(G2F_2020)
+
+G2F_2021 <- read.csv("Rollins_Field_Map_NEW.csv", header = TRUE, sep = ",")
+str(G2F_2021)
+names(G2F_2021)[names(G2F_2021) == 'Pedigree'] <- 'Pedigree_2021'
+str(G2F_2021)
+
+G2F_2020 <- G2F_2020[-(1:7772),]
+write.csv(G2F_2020, file = "trash.csv")
+
+trash <- read.csv("trash.csv", header = TRUE, sep = ",")
+MOH1_2020 <- trash[-(1595:10982),]
+names(MOH1_2020)[names(MOH1_2020) == 'Pedigree'] <- 'Pedigree_2020'
+
+str(MOH1_2020)
+
+write.csv(MOH1_2020, file = "MOH1_2020.csv")
+
+
+```
+
+```{r}
+#check to see if the pedigrees are the same
+
+P <- as.data.frame(cbind(G2F_2021$Pedigree_2021, MOH1_2020$Pedigree_2020))
+
+names(P)[names(P) == 'V1'] <- 'Pedigree_2021'
+names(P)[names(P) == 'V2'] <- 'Pedigree_2020'
+P
+
+P %>% 
+  mutate(Pedigree_2021_dupe = !is.na(match(Pedigree_2021, Pedigree_2020))) -> P2
+P2
+
+P2$Pedigree_2021[P2$Pedigree_2021_dupe]
+
+P2$Pedigree_2021_dupe
+sum(P2[1:617, c("Pedigree_2021_dupe")])
+
+write.csv(P2, file = "Pedigree_check_list.csv")
+```
+

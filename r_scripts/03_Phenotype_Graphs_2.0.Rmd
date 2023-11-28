@@ -1,0 +1,343 @@
+---
+title: "Phenotype_Graphs"
+output: html_document
+date: "2023-01-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+################################################################################
+##################################PREP WORK#####################################
+################################################################################
+library(tidyverse)
+library(ggplot2)
+library(ggpubr)
+library(magrittr)
+library(dplyr)
+library(rstatix)
+library(RColorBrewer)
+library(AICcmodavg)
+library(multcompView)
+library(viridis)
+
+wd <- "~/Desktop/uav_flood_analysis/RStudio/Data"
+# name of the file that is being graphed
+x <- "200615_Indices_corrected_plots.csv"
+# name of the new file at the end
+#z <- "210721_Best_PlotID.csv"
+# early date for comparison
+#m <- "210622_All_Data.csv"
+setwd(wd) 
+```
+
+
+```{r}
+###############################################################################
+########################CREATING HEAT MAPS FOR DATE X##########################
+###############################################################################
+df <- read.csv(x, header = TRUE, sep = ",")
+
+# import the first All_Data csv file
+df <- na.omit(read.csv(x, header = TRUE, sep = ","))
+
+mean(df$LAI)
+mean(df$NDVI)
+mean(df$Height)
+
+# Graph heat map of LAI
+ggplot(df, aes(x = Exp_row, y = Exp_range, fill = LAI)) +
+  geom_tile(color = "black") + 
+  geom_tile() +
+  xlab(label = "Row") +
+  ylab(label = "Range") +
+  scale_fill_viridis_c(limits=c(0, 1), breaks=seq(0,1,by=0.2)) +
+  guides( fill = guide_colourbar(barwidth = 0.5,
+                                barheight = 20)) +
+  theme_gray(base_size = 24)+
+  theme(#axis.title.x = element_blank(), 
+        legend.position = '')
+
+# Graph heatmap of NDVI
+ggplot(df, aes(x = QGIS_rows, y = QGIS_range, fill = NDVI)) +
+  geom_tile(color = "black") +
+  geom_tile() +
+  xlab(label = "Row") +
+  ylab(label = "Range") +
+  scale_fill_viridis_c(limits=c(0, 1), breaks=seq(0,1,by=0.1)) +
+  guides( fill = guide_colourbar(barwidth = 0.5,
+                                barheight = 20)) +
+  theme_gray(base_size = 24)+
+  theme(#axis.title.x = element_blank(), 
+        legend.position = '')
+
+# Graph heatmap of height
+ggplot(df, aes(x = Exp_row, y = Exp_range, fill = Plant_Height)) +
+  geom_tile(color = "black") +
+  geom_tile() +
+  xlab(label = "Row") +
+  ylab(label = "Range") +
+  scale_fill_viridis_c(limits=c(0, 220), breaks=seq(0,220,by=10)) +
+  guides( fill = guide_colourbar(barwidth = 0.5,
+                                barheight = 20)) +
+  theme_gray(base_size = 24)+
+  theme(#axis.title.x = element_blank(), 
+        legend.position = '')
+
+# modifications
+plt <- ggplot(df, aes(x = Exp_row, y = Exp_range, fill = Plant_Height)) +
+  geom_tile(color = "black") +
+  geom_tile() +
+  xlab(label = "Row") +
+  ylab(label = "Range") +
+  scale_fill_viridis_c(limits=c(0, 150), breaks=seq(0,150,by=10)) +
+  # scale_fill_gradientn(colors = hcl.colors(20, "RdYlGn"), values = c(0, 1.2))+
+  # scale_fill_manual()
+  guides( fill = guide_colourbar(barwidth = 0.5,
+                                barheight = 20))+
+  theme_gray(base_size = 24)+
+  theme(axis.title.x = element_blank(), 
+        legend.position = "right")
+
+plt
+ggsave("./example_plt.tiff", plot = plt, width = 6, height = 8, dpi = 350)
+
+```
+
+```{r}
+#####simple graph/test######
+
+df2 <- read.csv(m, header = TRUE, sep = ",")
+df2
+
+names(df)[names(df) == 'NDVI'] <- 'NDVI_210721'
+names(df2)[names(df2) == 'Height'] <- 'Height_210622'
+
+
+Data <- merge(df, df2, by = "PlotID")
+Data
+
+NEW_Data <- Data[c("NDVI_210721","Height_210622")]
+
+head(NEW_Data)
+
+hist(NEW_Data$NDVI_210721)
+hist(NEW_Data$Height_210622)
+
+
+p3 <- ggplot(NEW_Data, aes(x = NDVI_210721, y = Height_210622)) +
+  geom_point() +
+  geom_smooth(method= "lm" , color="yellow", fill="#69b3a2", se=TRUE) +
+  labs(title = "NDVI Correlation to Pre-Flood Height",
+      x = "NDVI 26 Days Post-Flood",
+      y = "Height Pre-Flood")
+p3
+
+lm_eqn <- function(NEW_Data){
+    m <- lm(Height_210622 ~ NDVI_210721, NEW_Data);
+    eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2, 
+         list(a = format(unname(coef(m)[1]), digits = 2),
+              b = format(unname(coef(m)[2]), digits = 2),
+             r2 = format(summary(m)$r.squared, digits = 3)))
+    as.character(as.expression(eq));
+}
+lm_eqn
+
+p1 <- p3 + geom_text(x = 0, y = 0.6, label = lm_eqn(NEW_Data), parse = TRUE)
+p1
+```
+
+```{r}
+###############################################################################
+############################LOCATION VS NDVI (ANOVA)###########################
+###############################################################################
+
+#TUTORIAL SOURCE: 
+
+
+# One way ANOVA...bc only two variables
+one.way <- aov(NDVI ~ Exp_range, data = df)
+
+summary(one.way)
+
+# two way ANOVA with rang and row
+two.way <- aov(NDVI ~ Exp_range + Exp_row, data = df)
+
+summary(two.way)
+
+#interactions between range and row
+interaction <- aov(NDVI ~ Exp_range*Exp_row, data = df)
+
+summary(interaction)
+
+
+#Find the best fit model
+model.set <- list(one.way, two.way, interaction)
+model.names <- c("one.way", "two.way", "interaction")
+
+aictab(model.set, modnames = model.names)
+
+#check for homoscedasticity
+par(mfrow=c(2,2))
+plot(interaction)
+par(mfrow=c(1,1))
+
+#do a post-hoc test ****not working
+
+#make sure that all factors are factors...errors otherwise
+df <- mutate_at(df, vars(Exp_range, Exp_row), as.factor)
+
+tukey <- TukeyHSD(aov(NDVI ~ Exp_range*Exp_row, data = df))
+print(tukey)
+
+#plot your data
+tukey.plot.aov<-aov(NDVI ~ Exp_row, data = df)
+tukey.plot.test<-TukeyHSD(tukey.plot.aov)
+plot(tukey.plot.test, las = 1)
+
+#graph NDVI Correlation to Range
+NDVI.plot <- ggplot(df, aes(x = Exp_range, y = NDVI, group=Exp_row)) +
+  geom_point(cex = 1.5, pch = 1.0,position = position_jitter(w = 0.1, h = 0))
+
+NDVI.plot
+
+NDVI.plot <- NDVI.plot +
+  stat_summary(fun.data = 'mean_se', geom = 'errorbar', width = 0.2) +
+  stat_summary(fun.data = 'mean_se', geom = 'pointrange') +
+  geom_point(data=df, aes(x=Exp_range, y=NDVI)) +
+  labs(title = "NDVI Correlation to Range",
+      x = "Range",
+      y = "NDVI")
+
+NDVI.plot
+
+#Graph NDVI correlation to Row
+NDVI.plot2 <- ggplot(df, aes(x = Exp_row, y = NDVI, group=Exp_range)) +
+  geom_point(cex = 1.5, pch = 1.0,position = position_jitter(w = 0.1, h = 0))
+
+NDVI.plot2
+
+NDVI.plot2 <- NDVI.plot +
+  stat_summary(fun.data = 'mean_se', geom = 'errorbar', width = 0.2) +
+  stat_summary(fun.data = 'mean_se', geom = 'pointrange') +
+  geom_point(data=df, aes(x=Exp_range, y=NDVI)) +
+  labs(title = "NDVI Correlation to Row",
+      x = "Row",
+      y = "NDVI")
+
+NDVI.plot2
+
+
+
+# testing
+# NDVI.plot2 <- 
+
+ggplot(df, aes(x = Exp_row, y = NDVI, group=Exp_range)) +
+  geom_point(cex = 1.5, pch = 1.0,position = position_jitter(w = 0.1, h = 0), alpha = 0.3) +
+  stat_summary(fun.data = 'mean_se', geom = 'errorbar', width = 0.2) +
+  stat_summary(fun.data = 'mean_se', geom = 'pointrange') +
+  # geom_point(data=df, aes(x=Exp_range, y=NDVI), alpha = 0.3) +
+  labs(title = "NDVI Correlation to Row",
+      x = "Row",
+      y = "NDVI")
+
+```
+
+```{r}
+####TRYING A REGRESSION LOL#####
+
+#change range and row back to numbers instead of factors from above
+df <- mutate_at(df, vars(Exp_range, Exp_row), as.numeric)
+
+#check for variable correlation
+cor(df$Exp_range, df$Exp_row)
+
+#check assumptions: check normality of distribution
+hist(df$NDVI)
+
+#check both independent variables for linearity
+plot(NDVI ~ Exp_range, data=df)
+plot(NDVI ~ Exp_row, data=df)
+
+#create the multiple regression
+NDVI.lm<-lm(NDVI ~ Exp_range + Exp_row, data = df)
+summary(NDVI.lm)
+
+par(mfrow=c(2,2))
+plot(NDVI.lm)
+
+#create a data.frame with the new info for graphing
+plotting.data<-expand.grid(
+  Exp_range = seq(min(df$Exp_range), max(df$Exp_range), length.out=30),
+    Exp_row =c(min(df$Exp_row), mean(df$Exp_row), max(df$Exp_row)))
+
+plotting.data$predicted.y <- predict.lm(NDVI.lm, newdata=plotting.data)
+
+plotting.data$Exp_row <- round(plotting.data$Exp_row, digits = 2)
+plotting.data$Exp_range <- round(plotting.data$Exp_range, digits = 2)
+
+df$Exp_range <- as.factor(df$Exp_range)
+
+df.plot <- ggplot(df, aes(x=Exp_row, y=NDVI)) +
+  geom_point()
+
+df.plot <- df.plot +
+  geom_line(data=plotting.data, aes(x=Exp_row, y=predicted.y, color=Exp_range), linewidth=1.25)
+
+df.plot <-
+df.plot +
+  theme_bw() +
+  labs(title = "NDVI Levels as a function of Range and Row",
+      x = "Row",
+      y = "NDVI",
+      color = "Range")
+
+
+df.plot
+```
+
+```{r}
+###############################################################################
+####################################T-TEST#####################################
+###############################################################################
+
+# import the first All_Data csv file
+Split_df <- split(df, f = df$Exp_range>11)
+
+#Welch Two Sample t-test on LAI vs Exp_Range
+T_LAI <- t.test(df$Exp_range, 
+       y = df$LAI,
+       alternative = c("two.sided"),
+       mu = 0, paired = FALSE, var.equal = FALSE,
+       conf.level = 0.95)
+
+#plot(T_LAI)
+
+ggdensity(df, x = "Exp_range", rug = TRUE, fill = "lightgray") +
+  scale_x_continuous(limits = c(1, 22)) +
+  stat_central_tendency(type = "mean", color = "red", linetype = "dashed") +
+  geom_vline(xintercept = 11, color = "blue", linetype = "dashed") 
+  
+#labs(subtitle = get_test_label(T_LAI,  detailed = TRUE))
+```
+
+```{r}
+###############################################################################
+########################FINDING BEST GENOTYPES OF X############################
+###############################################################################
+df$Best <- rowMeans(df[ , c("LAI","NDVI","Height")], na.rm=TRUE)
+
+Best.df <- df[ , c("PlotID", "Best", "Pedigree")]
+Best.df
+
+
+Best_PlotID <- Best.df %>% 
+ arrange(desc(Best)) 
+Best_PlotID
+
+write.csv(Best_PlotID, file = z)
+```
+
+
