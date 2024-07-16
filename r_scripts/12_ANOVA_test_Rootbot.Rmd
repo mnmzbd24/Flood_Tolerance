@@ -1,0 +1,27 @@
+---
+title: "ANOVA"
+output: html_document
+date: "2024-04-12"
+---
+
+```{r}
+library(dplyr)
+
+data <- read.csv("210721_Rollins5_Indices_Agisoft_nosoil_CLEAN.csv")
+
+str(data)
+data$Pedigree <- factor(data$Pedigree,) 
+data$PlotID <- factor(data$PlotID,) 
+data$Exp_row <- factor(data$Exp_row,) 
+data$Exp_range <- factor(data$Exp_range,) 
+str(data)
+
+head(data)
+
+data <- subset(data, select = c("PlotID","NDVI","Pedigree","Exp_row","Exp_range"))
+str(data)
+
+res.aov2 <- aov(NDVI ~ Pedigree + Exp_row + Exp_range, data = data)
+summary(res.aov2)
+```
+

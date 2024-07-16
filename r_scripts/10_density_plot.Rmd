@@ -1,0 +1,79 @@
+---
+title: "RD_graph"
+output: html_document
+date: "2023-12-04"
+---
+
+```{r}
+# ndvi <- read.csv("~/desktop/uav_flood_analysis/Python_Notebooks/All_NDVI.csv", sep = ",", header = TRUE)
+ndvi <- read.csv("./All_NDVI.csv", sep = ",", header = TRUE)
+
+# Libraries
+library(ggplot2)
+library(hrbrthemes)
+library(dplyr)
+library(tidyr)
+library(viridis)
+
+# The diamonds dataset is natively available with R.
+
+custom_colors <- c('#fcc5c0', '#fa9fb5', '#f768a1', '#dd3497', '#ae017e', '#7a0177',
+                   #'#ccebc5', 
+                   '#a8ddb5', '#7bccc4', '#4eb3d3', '#2b8cbe', '#08589e')
+
+# Without transparency (left)
+p1 <- ggplot(data=ndvi, aes(x=Value, group=Date, fill=Date)) +
+    geom_density(adjust=1.5)+
+  scale_fill_manual(values = custom_colors)
+    #theme_ipsum()
+p1
+
+
+
+
+# ggplot(data=ndvi, aes(x=Value, group=Date, fill=Date)) +
+#     geom_density(adjust=1.5) +
+#     facet_wrap(~Date) +
+#     theme(
+#       legend.position="none",
+#       panel.spacing = unit(0.1, "lines"),
+#       axis.ticks.x=element_blank()
+#     )
+
+
+
+custom_colors <- c(#'#fcc5c0', '#fa9fb5', '#f768a1', 
+'#dd3497', '#ae017e', '#7a0177',
+#'#ccebc5', 
+'#a8ddb5', '#7bccc4', #'#4eb3d3', '#2b8cbe', 
+'#08589e')
+
+
+ndvi |>
+  mutate(Year_ax = case_when(
+    Date > '2021-01-01'  ~ '2021',
+    Date <= '2021-01-01' ~ '2020',
+  )) |>
+  mutate(GDD_ax = case_when(
+    Date %in% c('2020-06-29', '2021-06-22') ~ '3 days pre-flood',
+    Date %in% c('2020-07-09', '2021-07-01') ~ '6 days post-flood',
+    Date %in% c('2020-07-28', '2021-07-21') ~ '26 days post-flood'
+  )) |>
+  filter(!is.na(GDD_ax)) |>
+  mutate(GDD_ax = factor(GDD_ax, levels = c('3 days pre-flood', 
+                                            '6 days post-flood', 
+                                            '26 days post-flood'))) |>
+  
+  ggplot(aes(x=Value, group=GDD_ax, fill=Date)) +
+  geom_density(adjust=1.5) +
+  facet_grid(Year_ax~GDD_ax) +
+  labs(x = 'NDVI')+
+  theme(
+    legend.position="none",
+    panel.spacing = unit(0.1, "lines"),
+    axis.ticks.x=element_blank()
+  )+
+  scale_fill_manual(values = custom_colors)
+  # theme_minimal()
+
+```

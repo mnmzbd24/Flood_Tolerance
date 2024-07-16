@@ -1,0 +1,84 @@
+---
+title: "Phenotype_Extraction"
+output: html_document
+date: "2023-01-11"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(FIELDimageR)
+library(raster)
+library(rgdal)
+library(dplyr)
+library(tictoc)
+library(sf)
+library(terra)
+```
+
+```{r}
+###############################################################################
+###############################ASSIGN VARIABLES################################
+###############################################################################
+
+path_start = 'c:/Users/s2c_cafnrrundji/Desktop/FieldImageR_2020/sequential_for_check/Rollins5/'
+
+list.files(path_start)
+
+e = list.files(path_start)[1]
+for(e in list.files(path_start)){
+date_prefix = stringr::str_split(e, '_')[[1]][[1]]
+ 
+  wd <- paste(c("/Users/s2c_cafnrrundji/Desktop/FieldImageR_2020/sequential_for_check/Rollins5/", date_prefix , "_RE-mx_Rollins5_Agisoft"), collapse = "")
+  
+  x <- paste(c("Reference_Grid_Rollins5_", date_prefix ,"_seq_CORRECT.gpkg"), collapse = "")
+  # y = RE tif file
+  y <- paste(c(date_prefix, "_RE-mx_Rollins5_Agisoft.tif"), collapse = "")
+ 
+   # z = final file name of indices
+   z <- paste(c(date_prefix, "_Rollins5_Indices_Agisoft_withsoil.csv"), collapse = "")
+   print(c(x, y, z))
+
+setwd(wd)
+
+#bring in orthomosaic
+tic()
+allrasters <- stack(y)
+toc()
+# plot(allrasters)
+
+
+#Removing the soil using index and mask from step 4:
+#tic()
+#allrasters.RemSoil<-fieldMask(allrasters,Red=1,Green=2,Blue=3,RedEdge=4,NIR=5,index="HUE",cropValue=0,cropAbove=T,plot=T)
+#toc()
+
+#Calculate index data based on remove soil
+tic()
+allrasters.Indices<- fieldIndex(mosaic = allrasters,
+                                Red=1,Green=2,Blue=3,RedEdge=4,NIR=5,
+                                index = c("BI","GLI","NGRDI", "VARI","BGI","NDVI")) 
+toc()
+
+#bring in shape file from QGIS
+tic()
+a.m2pro.Shape <- readOGR(x)
+toc()
+
+# plot(a.m2pro.Shape, add=T) 
+
+#Extract index data for each plot in shape file.
+tic()
+m2pro.Info <- fieldInfo(mosaic = allrasters.Indices,
+                        fieldShape = a.m2pro.Shape,
+                        projection = FALSE, 
+                        n.core = 10)
+toc()
+
+# export the data to the wd
+#writeOGR(m2pro.Info$fieldShape, ".", z, driver="ESRI Shapefile")
+write.csv(m2pro.Info$fieldShape, file = z, col.names = T,row.names = F)
+}
+```

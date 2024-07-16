@@ -1,0 +1,62 @@
+---
+title: "Lodging_Graphs"
+output: html_document
+date: "2024-03-03"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(ggpubr)
+library(magrittr)
+library(dplyr)
+library(rstatix)
+library(RColorBrewer)
+library(AICcmodavg)
+library(multcompView)
+library(viridis)
+
+wd <- "/Users/madi_mitchell/Desktop/uav_flood_analysis/Data/2021_Rollins5_TAMU/"
+# name of the file that is being graphed
+x <- "Rollins5_Lodging.csv"
+```
+
+```{r}
+setwd(wd)
+
+df <- read.csv(x, header = TRUE, sep = ",")
+
+names(df)[names(df) == 'X210701'] <- '6 days post-flood'
+names(df)[names(df) == 'X210721'] <- '26 days post-flood'
+
+dflong <- gather(df, key="measure", value="value", c(2, 3))
+
+#top
+ggplot(df, aes(x = x))+
+  geom_histogram( aes (x = , y = ..density..), fill = "#69b3a2", color = "black", bins = 10) +
+  geom_label( aes(x = 10, y = 0.25, label = "6 days post-flood")) +
+#bottom
+  geom_histogram( aes (x = X210721, y = -..density..), fill = "#00008b", color = "black", bins =10) +
+  geom_label( aes(x = 10, y = -0.25, label = "26 days post-flood")) +
+  xlab("Lodging Score (%)")
+
+
+
+
+dflong |>
+  mutate(measure = factor(measure, levels = c('6 days post-flood', '26 days post-flood'))) |>
+ggplot( aes(x=measure, y=value, fill = measure))+
+  geom_histogram( aes (x = value , y = ..density..),  color = "black", bins = 10) +
+  facet_wrap(~measure) +
+  scale_fill_manual(values = c("#69b3a2", "#00008b"))+
+  xlab("Lodging Score (%)") +
+  ylab("density") +
+  ggtitle("Distribution of Lodging Pre- and Post-Flood
+")
+
+```
+
